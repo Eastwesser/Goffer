@@ -59,19 +59,48 @@ func startMainLoop() {
 func handleCommand(msg *tgbotapi.Message) {
 	switch msg.Command() {
 	case "start":
-		sendMessage(msg.Chat.ID, "Welcome to Rock Paper Scissors! Use /play to start the game.")
-	case "play":
-		startGame(msg.Chat.ID)
+		sendSticker(msg.Chat.ID, "CAACAgIAAxkBAUnfw2YJcAxJpi6T9NHd8LsJkYTq_eQGAAIlAANd6qsi6WHKxUajPyQ0BA")
+		sendMessageWithKeyboard(msg.Chat.ID, "Let's play Rock Paper Scissors! Choose your move:", createKeyboard())
+	case "bye":
+		sendSticker(msg.Chat.ID, "CAACAgIAAxkBAUnfwGYJb_fw-cYOf7_g790oVUaEz_OTAAInAANd6qsiTtaS6Yvg0mU0BA")
+		sendMessage(msg.Chat.ID, "Bye, thanks for playing. Press /start to wake me up!")
 	default:
 		sendMessage(msg.Chat.ID, "Invalid command. Use /start to begin.")
 	}
 }
 
+func createKeyboard() tgbotapi.ReplyKeyboardMarkup {
+	keyboard := tgbotapi.NewReplyKeyboard(
+		tgbotapi.NewKeyboardButtonRow(
+			tgbotapi.NewKeyboardButton("Rock"),
+			tgbotapi.NewKeyboardButton("Paper"),
+			tgbotapi.NewKeyboardButton("Scissors"),
+		),
+		tgbotapi.NewKeyboardButtonRow(
+			tgbotapi.NewKeyboardButton("Finish"),
+		),
+	)
+	keyboard.OneTimeKeyboard = false // Keeping the keyboard visible
+	return keyboard
+}
+
+func sendMessageWithKeyboard(chatID int64, text string, keyboard tgbotapi.ReplyKeyboardMarkup) {
+	msg := tgbotapi.NewMessage(chatID, text)
+	msg.ReplyMarkup = keyboard
+	_, err := bot.Send(msg)
+	if err != nil {
+		log.Println("Error sending message:", err)
+	}
+}
+
 func handleMessage(msg *tgbotapi.Message) {
-	if msg.Text == "rock" || msg.Text == "paper" || msg.Text == "scissors" {
-		handleGameAction(msg, msg.Text) // Pass user's choice to handleGameAction
-	} else {
-		sendMessage(msg.Chat.ID, "I'm sorry, I didn't understand that.")
+	switch msg.Text {
+	case "Rock", "Paper", "Scissors":
+		handleGameAction(msg, msg.Text)
+	case "Finish":
+		sendMessage(msg.Chat.ID, "/bye") // Triggering the "/bye" command
+	default:
+		sendMessage(msg.Chat.ID, "I'm sorry, I didn't understand that. Type /start to wake me up!")
 	}
 }
 
@@ -83,26 +112,33 @@ func sendMessage(chatID int64, text string) {
 	}
 }
 
-func startGame(chatID int64) {
-	sendMessage(chatID, "Let's play Rock Paper Scissors! Choose your move: rock, paper, or scissors.")
+func sendSticker(chatID int64, stickerID string) {
+	msg := tgbotapi.NewStickerShare(chatID, stickerID)
+	_, err := bot.Send(msg)
+	if err != nil {
+		log.Println("Error sending sticker:", err)
+	}
 }
 
-func handleGameAction(msg *tgbotapi.Message, userChoice string) { // Add userChoice parameter
+func handleGameAction(msg *tgbotapi.Message, userChoice string) {
 	botChoice := generateBotChoice()
 	result := compareChoices(userChoice, botChoice)
 
 	switch result {
 	case "win":
+		sendSticker(msg.Chat.ID, "CAACAgIAAxkBAUnfzWYJcBvWulVycGgv1TbxEopajrE3AAIXAANd6qsicsnBjr5cTb00BA")
 		sendMessage(msg.Chat.ID, fmt.Sprintf("You chose %s, I chose %s. You win!", userChoice, botChoice))
 	case "lose":
+		sendSticker(msg.Chat.ID, "CAACAgIAAxkBAUnf0GYJcB2ERiExCjqYxebi4kR-1d2lAAIJAANd6qsi7-7sDc8Whpc0BA")
 		sendMessage(msg.Chat.ID, fmt.Sprintf("You chose %s, I chose %s. You lose!", userChoice, botChoice))
 	default:
+		sendSticker(msg.Chat.ID, "CAACAgIAAxkBAUnf02YJcCup7gIIO5DMBND1PFZ3seDUAAIbAANd6qsinB_Cwhpp6Uo0BA")
 		sendMessage(msg.Chat.ID, fmt.Sprintf("You chose %s, I chose %s. It's a tie!", userChoice, botChoice))
 	}
 }
 
 func generateBotChoice() string {
-	choices := []string{"rock", "paper", "scissors"}
+	choices := []string{"Rock", "Paper", "Scissors"}
 	return choices[rand.Intn(len(choices))]
 }
 
@@ -111,16 +147,16 @@ func compareChoices(userChoice, botChoice string) string {
 		return "tie"
 	}
 	switch userChoice {
-	case "rock":
-		if botChoice == "scissors" {
+	case "Rock":
+		if botChoice == "Scissors" {
 			return "win"
 		}
-	case "paper":
-		if botChoice == "rock" {
+	case "Paper":
+		if botChoice == "Rock" {
 			return "win"
 		}
-	case "scissors":
-		if botChoice == "paper" {
+	case "Scissors":
+		if botChoice == "Paper" {
 			return "win"
 		}
 	}
