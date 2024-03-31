@@ -62,8 +62,9 @@ func handleCommand(msg *tgbotapi.Message) {
 		sendSticker(msg.Chat.ID, "CAACAgIAAxkBAUnfw2YJcAxJpi6T9NHd8LsJkYTq_eQGAAIlAANd6qsi6WHKxUajPyQ0BA")
 		sendMessageWithKeyboard(msg.Chat.ID, "Let's play Rock Paper Scissors! Choose your move:", createKeyboard())
 	case "bye":
-		sendSticker(msg.Chat.ID, "CAACAgIAAxkBAUnfwGYJb_fw-cYOf7_g790oVUaEz_OTAAInAANd6qsiTtaS6Yvg0mU0BA")
-		sendMessage(msg.Chat.ID, "Bye, thanks for playing. Press /start to wake me up!")
+		sendStickerAndMessage(
+			msg.Chat.ID, "CAACAgIAAxkBAUnfwGYJb_fw-cYOf7_g790oVUaEz_OTAAInAANd6qsiTtaS6Yvg0mU0BA",
+			"Bye, thanks for playing. Press /start to wake me up!")
 	default:
 		sendMessage(msg.Chat.ID, "Invalid command. Use /start to begin.")
 	}
@@ -93,12 +94,19 @@ func sendMessageWithKeyboard(chatID int64, text string, keyboard tgbotapi.ReplyK
 	}
 }
 
+func sendStickerAndMessage(chatID int64, stickerID, messageText string) {
+	sendSticker(chatID, stickerID)
+	sendMessage(chatID, messageText)
+}
+
 func handleMessage(msg *tgbotapi.Message) {
 	switch msg.Text {
 	case "Rock", "Paper", "Scissors":
 		handleGameAction(msg, msg.Text)
 	case "Finish":
-		sendMessage(msg.Chat.ID, "/bye") // Triggering the "/bye" command
+		sendStickerAndMessage(
+			msg.Chat.ID, "CAACAgIAAxkBAUnfwGYJb_fw-cYOf7_g790oVUaEz_OTAAInAANd6qsiTtaS6Yvg0mU0BA",
+			"Bye, thanks for playing. Press /start to wake me up!")
 	default:
 		sendMessage(msg.Chat.ID, "I'm sorry, I didn't understand that. Type /start to wake me up!")
 	}
