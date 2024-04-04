@@ -1,40 +1,131 @@
 package main
 
 import (
+	"context"
 	"fmt"
-	"github.com/go-telegram-bot-api/telegram-bot-api"
 	"github.com/joho/godotenv"
 	"log"
 	"math/rand"
 	"os"
+	"strconv"
 )
 
-var bot *tgbotapi.BotAPI
+// Redis client instance
+var redisClient *redis.Client
 
+// Highscore represents user highscore data
+type Highscore struct {
+	UserID int64
+	Wins   int
+	Losses int
+	Draws  int
+}
+
+// Initialize Redis client
+func initRedisClient() {
+	redisClient = redis.NewClient(&redis.Options{
+		Addr:     "localhost:6379",
+		Password: "",
+		DB:       0,
+	})
+
+	ctx := context.Background()
+	_, err := redisClient.Ping(ctx).Result()
+	if err != nil {
+		log.Fatalf("Failed to connect to Redis: %v", err)
+	}
+}
+
+// UpdateHighscore updates the user's highscore in Redis
+func updateHighscore(userID int64, wins, losses, draws int) error {
+	ctx := context.Background()
+	key := fmt.Sprintf("highscores:%d", userID)
+	err := redisClient.HSet(ctx, key, map[string]interface{}{
+		"wins":   wins,
+		"losses": losses,
+		"draws":  draws,
+	}).Err()
+	if err != nil {
+		log.Printf("Error updating highscore for user %d: %v", userID, err)
+		return err
+	}
+	return nil
+}
+
+// GetHighscore retrieves the user's highscore from Redis
+func getHighscore(userID int64) (Highscore, error) {
+	ctx := context.Background()
+	key := fmt.Sprintf("highscores:%d", userID)
+	data, err := redisClient.HGetAll(ctx, key).Result()
+	if err != nil {
+		log.Printf("Error retrieving highscore for user %d: %v", userID, err)
+		return Highscore{}, err
+	}
+	hs := Highscore{
+		UserID: userID,
+	}
+	if len(data) == 0 {
+		return hs, nil
+	}
+	if val, ok := data["wins"]; ok {
+		hs.Wins, _ = strconv.Atoi(val)
+	}
+	if val, ok := data["losses"]; ok {
+		hs.Losses, _ = strconv.Atoi(val)
+	}
+	if val, ok := data["draws"]; ok {
+		hs.Draws, _ = strconv.Atoi(val)
+	}
+	return hs, nil
+}
+
+// HandleGameAction handles the game action and updates highscore
+func handleGameAction(msg *tgbotapi.Message, userChoice string) {
+	err := redisClient.Set(context.Background(), fmt.Sprintf("user:%d:choice", msg.From.ID), userChoice, 0).Err()
+	if err != nil {
+		log.Println("Error storing user choice in Redis:", err)
+	}
+
+	botChoice := generateBotChoice()
+	result := compareChoices(userChoice, botChoice)
+
+	switch result {
+	case "win":
+		sendStickerAndMessage(msg.Chat.ID, "CAACAgIAAxkBAUnfzWYJcBvWulVycGgv1TbxEopajrE3AAIXAANd6qsicsnBjr5cTb00BA", fmt.Sprintf("You chose %s, I chose %s. You win!", userChoice, botChoice))
+		updateHighscore(msg.From.ID, 1, 0, 0)
+	case "lose":
+		sendStickerAndMessage(msg.Chat.ID, "CAACAgIAAxkBAUnf0GYJcB2ERiExCjqYxebi4kR-1d2lAAIJAANd6qsi7-7sDc8Whpc0BA", fmt.Sprintf("You chose %s, I chose %s. You lose!", userChoice, botChoice))
+		updateHighscore(msg.From.ID, 0, 1, 0)
+	default:
+		sendStickerAndMessage(msg.Chat.ID, "CAACAgIAAxkBAUnf02YJcCup7gIIO5DMBND1PFZ3seDUAAIbAANd6qsinB_Cwhpp6Uo0BA", fmt.Sprintf("You chose %s, I chose %s. It's a tie!", userChoice, botChoice))
+		updateHighscore(msg.From.ID, 0, 0, 1)
+	}
+}
+
+// Main function to start the bot
 func main() {
-	// Load environment variables from .env file
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatal("Error loading .env file")
 	}
 
-	// Get the bot token from the environment variables
+	initRedisClient()
+
 	botToken := os.Getenv("BOT_TOKEN")
 	if botToken == "" {
 		log.Fatal("BOT_TOKEN not found in environment variables")
 	}
 
-	// Create a new bot instance
-	bot, err = tgbotapi.NewBotAPI(botToken)
+	bot, err := tgbotapi.NewBotAPI(botToken)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	// Start the main loop to handle updates
-	startMainLoop()
+	startMainLoop(bot)
 }
 
-func startMainLoop() {
+// StartMainLoop starts the main loop to handle updates
+func startMainLoop(bot *tgbotapi.BotAPI) {
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60
 
@@ -125,23 +216,6 @@ func sendSticker(chatID int64, stickerID string) {
 	_, err := bot.Send(msg)
 	if err != nil {
 		log.Println("Error sending sticker:", err)
-	}
-}
-
-func handleGameAction(msg *tgbotapi.Message, userChoice string) {
-	botChoice := generateBotChoice()
-	result := compareChoices(userChoice, botChoice)
-
-	switch result {
-	case "win":
-		sendSticker(msg.Chat.ID, "CAACAgIAAxkBAUnfzWYJcBvWulVycGgv1TbxEopajrE3AAIXAANd6qsicsnBjr5cTb00BA")
-		sendMessage(msg.Chat.ID, fmt.Sprintf("You chose %s, I chose %s. You win!", userChoice, botChoice))
-	case "lose":
-		sendSticker(msg.Chat.ID, "CAACAgIAAxkBAUnf0GYJcB2ERiExCjqYxebi4kR-1d2lAAIJAANd6qsi7-7sDc8Whpc0BA")
-		sendMessage(msg.Chat.ID, fmt.Sprintf("You chose %s, I chose %s. You lose!", userChoice, botChoice))
-	default:
-		sendSticker(msg.Chat.ID, "CAACAgIAAxkBAUnf02YJcCup7gIIO5DMBND1PFZ3seDUAAIbAANd6qsinB_Cwhpp6Uo0BA")
-		sendMessage(msg.Chat.ID, fmt.Sprintf("You chose %s, I chose %s. It's a tie!", userChoice, botChoice))
 	}
 }
 
