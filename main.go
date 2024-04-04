@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/go-redis/redis/v8"
+	"github.com/go-telegram-bot-api/telegram-bot-api"
 	"github.com/joho/godotenv"
 	"log"
 	"math/rand"
@@ -80,7 +82,7 @@ func getHighscore(userID int64) (Highscore, error) {
 }
 
 // HandleGameAction handles the game action and updates highscore
-func handleGameAction(msg *tgbotapi.Message, userChoice string) {
+func handleGameAction(bot *tgbotapi.BotAPI, msg *tgbotapi.Message, userChoice string) {
 	err := redisClient.Set(context.Background(), fmt.Sprintf("user:%d:choice", msg.From.ID), userChoice, 0).Err()
 	if err != nil {
 		log.Println("Error storing user choice in Redis:", err)
@@ -89,16 +91,21 @@ func handleGameAction(msg *tgbotapi.Message, userChoice string) {
 	botChoice := generateBotChoice()
 	result := compareChoices(userChoice, botChoice)
 
+	var errUpdate error
 	switch result {
 	case "win":
-		sendStickerAndMessage(msg.Chat.ID, "CAACAgIAAxkBAUnfzWYJcBvWulVycGgv1TbxEopajrE3AAIXAANd6qsicsnBjr5cTb00BA", fmt.Sprintf("You chose %s, I chose %s. You win!", userChoice, botChoice))
-		updateHighscore(msg.From.ID, 1, 0, 0)
+		sendStickerAndMessage(bot, msg.Chat.ID, "CAACAgIAAxkBAUnfzWYJcBvWulVycGgv1TbxEopajrE3AAIXAANd6qsicsnBjr5cTb00BA", fmt.Sprintf("You chose %s, I chose %s. You win!", userChoice, botChoice))
+		errUpdate = updateHighscore(int64(msg.From.ID), 1, 0, 0)
 	case "lose":
-		sendStickerAndMessage(msg.Chat.ID, "CAACAgIAAxkBAUnf0GYJcB2ERiExCjqYxebi4kR-1d2lAAIJAANd6qsi7-7sDc8Whpc0BA", fmt.Sprintf("You chose %s, I chose %s. You lose!", userChoice, botChoice))
-		updateHighscore(msg.From.ID, 0, 1, 0)
+		sendStickerAndMessage(bot, msg.Chat.ID, "CAACAgIAAxkBAUnf0GYJcB2ERiExCjqYxebi4kR-1d2lAAIJAANd6qsi7-7sDc8Whpc0BA", fmt.Sprintf("You chose %s, I chose %s. You lose!", userChoice, botChoice))
+		errUpdate = updateHighscore(int64(msg.From.ID), 0, 1, 0)
 	default:
-		sendStickerAndMessage(msg.Chat.ID, "CAACAgIAAxkBAUnf02YJcCup7gIIO5DMBND1PFZ3seDUAAIbAANd6qsinB_Cwhpp6Uo0BA", fmt.Sprintf("You chose %s, I chose %s. It's a tie!", userChoice, botChoice))
-		updateHighscore(msg.From.ID, 0, 0, 1)
+		sendStickerAndMessage(bot, msg.Chat.ID, "CAACAgIAAxkBAUnf02YJcCup7gIIO5DMBND1PFZ3seDUAAIbAANd6qsinB_Cwhpp6Uo0BA", fmt.Sprintf("You chose %s, I chose %s. It's a tie!", userChoice, botChoice))
+		errUpdate = updateHighscore(int64(msg.From.ID), 0, 0, 1)
+	}
+
+	if errUpdate != nil {
+		log.Println("Error updating highscore:", errUpdate)
 	}
 }
 
@@ -140,27 +147,29 @@ func startMainLoop(bot *tgbotapi.BotAPI) {
 		}
 
 		if update.Message.IsCommand() {
-			handleCommand(update.Message)
+			handleCommand(bot, update.Message)
 		} else {
-			handleMessage(update.Message)
+			handleMessage(bot, update.Message) // Pass bot as an argument
 		}
 	}
 }
 
-func handleCommand(msg *tgbotapi.Message) {
+// Modify the handleCommand function signature to accept the bot parameter
+func handleCommand(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
 	switch msg.Command() {
 	case "start":
-		sendSticker(msg.Chat.ID, "CAACAgIAAxkBAUnfw2YJcAxJpi6T9NHd8LsJkYTq_eQGAAIlAANd6qsi6WHKxUajPyQ0BA")
-		sendMessageWithKeyboard(msg.Chat.ID, "Let's play Rock Paper Scissors! Choose your move:", createKeyboard())
+		sendSticker(bot, msg.Chat.ID, "CAACAgIAAxkBAUnfw2YJcAxJpi6T9NHd8LsJkYTq_eQGAAIlAANd6qsi6WHKxUajPyQ0BA")
+		sendMessageWithKeyboard(bot, msg.Chat.ID, "Let's play Rock Paper Scissors! Choose your move:", createKeyboard())
 	case "bye":
-		sendStickerAndMessage(
+		sendStickerAndMessage(bot,
 			msg.Chat.ID, "CAACAgIAAxkBAUnfwGYJb_fw-cYOf7_g790oVUaEz_OTAAInAANd6qsiTtaS6Yvg0mU0BA",
 			"Bye, thanks for playing. Press /start to wake me up!")
 	default:
-		sendMessage(msg.Chat.ID, "Invalid command. Use /start to begin.")
+		sendMessage(bot, msg.Chat.ID, "Invalid command. Use /start to begin.")
 	}
 }
 
+// Modify the createKeyboard function signature to accept the bot parameter
 func createKeyboard() tgbotapi.ReplyKeyboardMarkup {
 	keyboard := tgbotapi.NewReplyKeyboard(
 		tgbotapi.NewKeyboardButtonRow(
@@ -176,7 +185,8 @@ func createKeyboard() tgbotapi.ReplyKeyboardMarkup {
 	return keyboard
 }
 
-func sendMessageWithKeyboard(chatID int64, text string, keyboard tgbotapi.ReplyKeyboardMarkup) {
+// Modify the sendMessageWithKeyboard function signature to accept the bot parameter
+func sendMessageWithKeyboard(bot *tgbotapi.BotAPI, chatID int64, text string, keyboard tgbotapi.ReplyKeyboardMarkup) {
 	msg := tgbotapi.NewMessage(chatID, text)
 	msg.ReplyMarkup = keyboard
 	_, err := bot.Send(msg)
@@ -185,25 +195,26 @@ func sendMessageWithKeyboard(chatID int64, text string, keyboard tgbotapi.ReplyK
 	}
 }
 
-func sendStickerAndMessage(chatID int64, stickerID, messageText string) {
-	sendSticker(chatID, stickerID)
-	sendMessage(chatID, messageText)
+func sendStickerAndMessage(bot *tgbotapi.BotAPI, chatID int64, stickerID, messageText string) {
+	sendSticker(bot, chatID, stickerID)
+	sendMessage(bot, chatID, messageText)
 }
 
-func handleMessage(msg *tgbotapi.Message) {
+// Modify handleMessage to accept bot parameter
+func handleMessage(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
 	switch msg.Text {
 	case "Rock", "Paper", "Scissors":
-		handleGameAction(msg, msg.Text)
+		handleGameAction(bot, msg, msg.Text)
 	case "Finish":
-		sendStickerAndMessage(
+		sendStickerAndMessage(bot,
 			msg.Chat.ID, "CAACAgIAAxkBAUnfwGYJb_fw-cYOf7_g790oVUaEz_OTAAInAANd6qsiTtaS6Yvg0mU0BA",
 			"Bye, thanks for playing. Press /start to wake me up!")
 	default:
-		sendMessage(msg.Chat.ID, "I'm sorry, I didn't understand that. Type /start to wake me up!")
+		sendMessage(bot, msg.Chat.ID, "I'm sorry, I didn't understand that. Type /start to wake me up!")
 	}
 }
 
-func sendMessage(chatID int64, text string) {
+func sendMessage(bot *tgbotapi.BotAPI, chatID int64, text string) {
 	msg := tgbotapi.NewMessage(chatID, text)
 	_, err := bot.Send(msg)
 	if err != nil {
@@ -211,7 +222,7 @@ func sendMessage(chatID int64, text string) {
 	}
 }
 
-func sendSticker(chatID int64, stickerID string) {
+func sendSticker(bot *tgbotapi.BotAPI, chatID int64, stickerID string) {
 	msg := tgbotapi.NewStickerShare(chatID, stickerID)
 	_, err := bot.Send(msg)
 	if err != nil {
