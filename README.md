@@ -111,4 +111,4 @@ Goffer/
 
 Contributions are welcome! Please open an issue or submit a pull request if you would like to contribute to this project.
 
-Feel free to adjust any section based on specific details or preferences for your project. T
+Feel free to adjust any section based on specific details or preferences for your project.
