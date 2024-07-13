@@ -1,6 +1,6 @@
 # Goffer - Telegram Bot
 
-Goffer is a Go-based Telegram bot that interacts with users by playing games (Rock-Paper-Scissors) and managing highscores using Redis. This project serves as an example of how to build a simple yet functional Telegram bot with Go and Redis.
+'Goffer' is a Go-based Telegram bot that interacts with users by playing games (Rock-Paper-Scissors) and managing highscores using Redis. This project serves as an example of how to build a simple yet functional Telegram bot with Go and Redis.
 
 ## Table of Contents
 
