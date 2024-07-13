@@ -9,8 +9,10 @@ import (
 	"github.com/go-redis/redis/v8"
 )
 
+// Client is the global Redis client
 var Client *redis.Client
 
+// Highscore represents the highscore data for a user
 type Highscore struct {
 	UserID int64
 	Wins   int
@@ -18,11 +20,12 @@ type Highscore struct {
 	Draws  int
 }
 
+// InitRedisClient initializes the Redis client and connects to the Redis server
 func InitRedisClient() {
 	Client = redis.NewClient(&redis.Options{
-		Addr:     "localhost:6379",
-		Password: "",
-		DB:       0,
+		Addr:     "localhost:6379", // Redis server address
+		Password: "",               // No password set
+		DB:       0,                // Use default DB
 	})
 
 	ctx := context.Background()
@@ -33,9 +36,10 @@ func InitRedisClient() {
 	log.Printf("Redis connected successfully: %s", pong)
 }
 
+// UpdateHighscore updates the highscore for a user in Redis
 func UpdateHighscore(userID int64, wins, losses, draws int) error {
 	ctx := context.Background()
-	key := fmt.Sprintf("highscores:%d", userID)
+	key := fmt.Sprintf("highscores:%d", userID) // Create a key for the user's highscore
 	err := Client.HSet(ctx, key, map[string]interface{}{
 		"wins":   wins,
 		"losses": losses,
@@ -48,9 +52,10 @@ func UpdateHighscore(userID int64, wins, losses, draws int) error {
 	return nil
 }
 
+// GetHighscore retrieves the highscore for a user from Redis
 func GetHighscore(userID int64) (Highscore, error) {
 	ctx := context.Background()
-	key := fmt.Sprintf("highscores:%d", userID)
+	key := fmt.Sprintf("highscores:%d", userID) // Create a key for the user's highscore
 	data, err := Client.HGetAll(ctx, key).Result()
 	if err != nil {
 		log.Printf("Error retrieving highscore for user %d: %v", userID, err)

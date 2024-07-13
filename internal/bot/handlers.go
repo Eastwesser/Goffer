@@ -8,15 +8,19 @@ import (
 	"log"
 )
 
+// handleGameAction processes the user's game action and determines the result
 func handleGameAction(bot *tgbotapi.BotAPI, msg *tgbotapi.Message, userChoice string) {
+	// Store the user's choice in Redis
 	err := redis.Client.Set(context.Background(), fmt.Sprintf("user:%d:choice", msg.From.ID), userChoice, 0).Err()
 	if err != nil {
 		log.Println("Error storing user choice in Redis:", err)
 	}
 
+	// Generate the bot's choice and compare with the user's choice
 	botChoice := generateBotChoice()
 	result := compareChoices(userChoice, botChoice)
 
+	// Send the appropriate response based on the game result and update highscore
 	var errUpdate error
 	switch result {
 	case "win":
@@ -35,15 +39,19 @@ func handleGameAction(bot *tgbotapi.BotAPI, msg *tgbotapi.Message, userChoice st
 	}
 }
 
+// handleMessage processes incoming text messages from the user
 func handleMessage(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
 	switch msg.Text {
 	case "Rock", "Paper", "Scissors":
+		// Handle the game action if the user sends a valid choice
 		handleGameAction(bot, msg, msg.Text)
 	case "Finish":
+		// Send a goodbye sticker and message
 		sendStickerAndMessage(bot,
 			msg.Chat.ID, "CAACAgIAAxkBAUnfwGYJb_fw-cYOf7_g790oVUaEz_OTAAInAANd6qsiTtaS6Yvg0mU0BA",
 			"Bye, thanks for playing. Press /start to wake me up!")
 	default:
+		// Inform the user about the invalid message
 		sendMessage(bot, msg.Chat.ID, "I'm sorry, I didn't understand that. Type /start to wake me up!")
 	}
 }

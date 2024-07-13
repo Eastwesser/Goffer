@@ -6,6 +6,7 @@ import (
 	"github.com/go-telegram-bot-api/telegram-bot-api"
 )
 
+// StartMainLoop initializes the bot and starts the main update loop
 func StartMainLoop(botToken string) {
 	bot, err := tgbotapi.NewBotAPI(botToken)
 	if err != nil {

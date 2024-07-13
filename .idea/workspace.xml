@@ -4,7 +4,12 @@
     <option name="autoReloadType" value="ALL" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="f74fa5e8-c9dd-4862-a171-5dc2123b460c" name="Changes" comment="" />
+    <list default="true" id="f74fa5e8-c9dd-4862-a171-5dc2123b460c" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/internal/bot/commands.go" beforeDir="false" afterPath="$PROJECT_DIR$/internal/bot/commands.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/bot/handlers.go" beforeDir="false" afterPath="$PROJECT_DIR$/internal/bot/handlers.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/game/game.go" beforeDir="false" afterPath="$PROJECT_DIR$/internal/game/game.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/redis/redis.go" beforeDir="false" afterPath="$PROJECT_DIR$/internal/redis/redis.go" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
